@@ -9,12 +9,15 @@ export const App: React.FC = () => {
   useEffect(() => {
     const controller = new AbortController()
     fetch(`${API_BASE}/health`, { signal: controller.signal })
-      .then(async (res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        return res.json()
+    .then(async (res) => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setError('');           // clear any previous error
+      setStatus(data.status || 'unknown');
+    })
+      .catch((e: any) => {
+        if (e.name !== 'AbortError') setError(String(e))
       })
-      .then((data) => setStatus(data.status || 'unknown'))
-      .catch((e) => setError(String(e)))
     return () => controller.abort()
   }, [])
 
