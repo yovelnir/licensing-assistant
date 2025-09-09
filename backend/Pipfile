@@ -9,6 +9,7 @@ flask-cors = "==4.0.0"
 python-dotenv = "==1.0.1"
 
 [dev-packages]
+pytest = "==8.3.3"
 
 [requires]
 python_version = "3.12"
