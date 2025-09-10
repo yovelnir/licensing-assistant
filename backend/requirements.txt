@@ -1,3 +1,10 @@
 Flask==3.0.3
 flask-cors==4.0.0
 python-dotenv==1.0.1
+PyYAML==6.0.2
+unidecode
+python-bidi
+pymupdf
+pdfplumber
+python-docx
+pdfminer.six
