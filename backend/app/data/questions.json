@@ -1,0 +1,49 @@
+{
+  "questionnaire": {
+    "version": "1.1",
+    "description": "שאלון רישוי עסקים מסעדות לפי משימה טכנית",
+    "instructions": "יש למלא לפחות את השדות הנדרשים (גודל ותפוסה) כדי לקבל ניתוח מדויק",
+    "required_fields": ["size_m2", "seats"]
+  },
+  "questions": [
+    {
+      "name": "size_m2",
+      "label": "גודל העסק (מ\"ר)",
+      "type": "number",
+      "required": true,
+      "min": 1,
+      "max": 10000,
+      "placeholder": "לדוגמה: 150",
+      "description": "שטח העסק במטרים מרובעים - נדרש לצורך סינון דרישות"
+    },
+    {
+      "name": "seats",
+      "label": "מספר מקומות ישיבה / תפוסה",
+      "type": "number",
+      "required": true,
+      "min": 0,
+      "max": 1000,
+      "placeholder": "לדוגמה: 50",
+      "description": "מספר לקוחות שיכולים לשבת במקום - נדרש לצורך סינון דרישות"
+    },
+    {
+      "name": "attributes",
+      "label": "מאפייני עסק נוספים",
+      "type": "multiselect",
+      "required": false,
+      "description": "בחר את כל המאפיינים הרלוונטיים - מאפיינים נוספים המשפיעים על דרישות הרגולציה"
+    }
+  ],
+  "validation": {
+    "size_m2": {
+      "min": 1,
+      "max": 10000,
+      "error_message": "גודל העסק חייב להיות בין 1 ל-10,000 מ\"ר"
+    },
+    "seats": {
+      "min": 0,
+      "max": 1000,
+      "error_message": "מספר מקומות הישיבה חייב להיות בין 0 ל-1,000"
+    }
+  }
+}
