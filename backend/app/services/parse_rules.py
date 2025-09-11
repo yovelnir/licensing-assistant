@@ -128,7 +128,7 @@ def read_docx(path: Path) -> str:
 # Normalization helpers
 # -------------------------
 
-NUM_KEY_RE = re.compile(r"^\d+(?:\.\d+){0,3}$")
+NUM_KEY_RE = re.compile(r"^\d+(?:\.\d+){0,19}$")
 
 def _sorted_unique(numbers: Iterable[str]) -> List[str]:
     """Sort unique paragraph numbers by depth then lexicographically."""
@@ -201,7 +201,7 @@ def canonicalize_num(raw_num: str, current_chapter: Optional[str]) -> str:
 
 # Regex patterns for the new parsing implementation
 RE_CATEGORY = re.compile(r'^\s*פרק\s+(\d+)\s*(?:[-–—]\s*(.+?))?\s*$', re.U)
-RE_NUM_START = re.compile(r'^\s*(\d+(?:\.\d+){0,3})(?=[\s\.\-\)])', re.U)
+RE_NUM_START = re.compile(r'^\s*(\d+(?:\.\d+){0,19})(?=[\s\.\-\)])', re.U)
 
 
 def ensure_node(tree: Dict, cat: str, num: str) -> Dict:
@@ -222,7 +222,7 @@ def ensure_node(tree: Dict, cat: str, num: str) -> Dict:
 def add_text(tree: Dict, cat: str, num: str, text: str) -> None:
     """Add text to a paragraph node."""
     node = ensure_node(tree, cat, num)
-    node["text"] = (node["text"] + ("\n" if node["text"] else "") + text).strip()
+    node["text"] = (node["text"] + (" " if node["text"] else "") + text).strip()
 
 
 def parse_paragraphs(text: str) -> Dict[str, Any]:
@@ -319,7 +319,7 @@ def normalize(text: str) -> str:
 
     s = text.replace("\u00A0", " ")
     # dashes
-    s = s.replace("–", "-").replace("—", "-").replace("‑", "-")
+    s = s.replace("–", "-").replace("—", "-").replace("‑", "-").replace("_", " ")
     # quotes
     quote_map = {
         "“": '"', "”": '"', "„": '"', "‟": '"',
@@ -424,22 +424,70 @@ def _flatten_paragraphs(paragraphs: Dict[str, Any]) -> List[Tuple[str, str, str]
 
 
 def _compile_keywords(keyword_items: Iterable[Any]) -> List[re.Pattern[str]]:
+    """
+    Compile keyword items into regex patterns.
+    
+    Supports two formats:
+    1. String: "literal text" - escaped as literal match (case-insensitive)
+    2. Dict: {"regex": true, "pattern": "regex_pattern", "flags": ["I", "M"]} 
+             - compiled as regex with optional flags
+    
+    Args:
+        keyword_items: Iterable of strings or dict objects
+        
+    Returns:
+        List of compiled regex patterns
+    """
     patterns: List[re.Pattern[str]] = []
     for item in keyword_items:
         if isinstance(item, str):
+            # Literal string - escape and compile with case-insensitive flag
             try:
                 patterns.append(re.compile(re.escape(item), re.I))
             except re.error:
-                    continue
-        elif isinstance(item, dict) and item.get("regex") and isinstance(item.get("pattern"), str):
+                continue
+        elif isinstance(item, dict) and item.get("regex") is True and isinstance(item.get("pattern"), str):
+            # Regex pattern with optional flags
             try:
-                patterns.append(re.compile(item["pattern"], re.I))
-            except re.error:
-                        continue
+                pattern = item["pattern"]
+                flags = 0
+                
+                # Parse optional flags
+                flag_names = item.get("flags", ["I"])  # Default to case-insensitive
+                if isinstance(flag_names, list):
+                    for flag_name in flag_names:
+                        if isinstance(flag_name, str):
+                            flag_name = flag_name.upper()
+                            if hasattr(re, flag_name):
+                                flags |= getattr(re, flag_name)
+                
+                # If no flags specified or parsing failed, default to case-insensitive
+                if flags == 0:
+                    flags = re.I
+                    
+                patterns.append(re.compile(pattern, flags))
+            except (re.error, AttributeError, TypeError):
+                continue
     return patterns
 
 
 def build_mappings(paragraphs: Dict[str, Any], feature_keywords: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Build feature mappings from paragraphs using keyword matching.
+    
+    Supports multiple configuration formats:
+    1. Category-specific: {"categories": {"cat1": [keywords], "cat2": [keywords]}}
+    2. Single category: {"category": "cat_name", "keywords": [keywords]}  
+    3. Search all categories: {"search_all_categories": true, "keywords": [keywords]}
+    4. Legacy fallback: {"keywords": [keywords]} - searches all categories
+    
+    Args:
+        paragraphs: Hierarchical paragraph structure by category
+        feature_keywords: Feature configuration with keywords and search scope
+        
+    Returns:
+        Mapping of features to matching paragraphs by category
+    """
     rows = _flatten_paragraphs(paragraphs)
     by_cat: Dict[str, List[Tuple[str, str]]] = {}
     for cat, num, txt in rows:
@@ -450,6 +498,7 @@ def build_mappings(paragraphs: Dict[str, Any], feature_keywords: Dict[str, Any])
         entry: Dict[str, Any] = {"categories": {}, "paragraphs": []}
 
         if isinstance(cfg, dict) and isinstance(cfg.get("categories"), dict):
+            # Format 1: Category-specific keyword mapping
             global_patterns = _compile_keywords(cfg.get("keywords", []))
             for cat_name, cat_keywords in cfg["categories"].items():
                 patterns = _compile_keywords(cat_keywords) + global_patterns
@@ -466,19 +515,21 @@ def build_mappings(paragraphs: Dict[str, Any], feature_keywords: Dict[str, Any])
             entry["paragraphs"] = _sorted_unique(union)
 
         elif isinstance(cfg, dict) and "category" in cfg and "keywords" in cfg:
+            # Format 2: Single category targeting
             cat_name = cfg.get("category")
             patterns = _compile_keywords(cfg.get("keywords", []))
             hits: List[str] = []
             for num, txt in by_cat.get(cat_name, []):
                 if any(p.search(txt) for p in patterns):
-                        hits.append(num)
+                    hits.append(num)
             sorted_hits = _sorted_unique(hits)
             if sorted_hits:
                 entry["categories"][cat_name] = sorted_hits
             entry["paragraphs"] = _sorted_unique(hits)
 
-        else:
-            patterns = _compile_keywords(cfg.get("keywords", [])) if isinstance(cfg, dict) else []
+        elif isinstance(cfg, dict) and (cfg.get("search_all_categories") is True or "keywords" in cfg):
+            # Format 3 & 4: Search all categories (explicit flag or legacy fallback)
+            patterns = _compile_keywords(cfg.get("keywords", []))
             union: List[str] = []
             for cat_name, items in by_cat.items():
                 hits: List[str] = []
