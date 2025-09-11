@@ -1,62 +1,123 @@
-## Data Processing
+## Data Processing Pipeline
 
-This project demonstrates a minimal, end-to-end pipeline that converts raw restaurant licensing requirements into a structured format and maps business attributes to regulatory rules.
+This project implements a complete document processing pipeline that extracts Hebrew regulatory requirements from PDF/DOCX files and maps them to structured features using flexible keyword matching.
+
+### Architecture Overview
+
+The pipeline transforms raw regulatory documents into searchable, structured data through four main stages:
+
+1. **Text Extraction**: Multi-library PDF/DOCX text extraction with Hebrew optimization
+2. **Normalization**: Text cleaning and artifact removal  
+3. **Hierarchical Parsing**: Chapter and paragraph structure extraction
+4. **Feature Mapping**: Keyword-based content classification
 
 ### Source Data
-- Input: a small curated subset of restaurant requirements authored as YAML: `backend/app/data/raw/restaurant_rules.yaml`.
-- Rationale: Instead of parsing the full PDF/Word, we extracted a representative subset to validate the architecture and mapping.
 
-### Processor
-- Script: `backend/app/services/parse_rules.py`
-- Action: reads the source PDF/DOCX and writes normalized JSON to `backend/app/data/processed/restaurant_rules.json`.
-- Run:
-  ```powershell
-  cd backend
-  pip install -r requirements.txt
-  python app/services/parse_rules.py app/data/raw/18-07-2022_4.2A.pdf app/data/raw/features.json app/data/processed
-  ```
+**Input Files:**
+- **Primary**: `backend/app/data/raw/18-07-2022_4.2A.pdf` - Hebrew restaurant licensing requirements
+- **Secondary**: `backend/app/data/raw/18-07-2022_4.2A.docx` - Same content for format verification
+- **Configuration**: `backend/app/data/raw/features.json` - Feature extraction rules
 
-### Keyword Mapping and Regex Support
+**Supported Formats:**
+- PDF (PyMuPDF preferred, pdfplumber/pdfminer fallback)
+- DOCX (python-docx with table support)
 
-The processor supports flexible keyword matching for feature extraction via `features.json`. Keywords can be specified in two formats:
+### Processing Pipeline
 
-#### 1. Literal String Keywords
-Simple strings are matched literally (case-insensitive):
-```json
-{
-  "fire_safety": {
-    "keywords": ["כיבוי אש", "בטיחות אש", "גלאי עשן"]
-  }
-}
+**Script**: `backend/app/services/parse_rules.py`  
+**Usage**:
+```powershell
+cd backend
+pipenv shell  # Use pipenv for dependency management
+python app/services/parse_rules.py app/data/raw/18-07-2022_4.2A.pdf app/data/raw/features.json app/data/processed
 ```
 
-#### 2. Regex Pattern Keywords  
-For advanced pattern matching, use regex format:
+**Verification Mode** (ensures PDF ≡ DOCX):
+```powershell
+python app/services/parse_rules.py app/data/raw/18-07-2022_4.2A.pdf app/data/raw/features.json app/data/processed --verify-other app/data/raw/18-07-2022_4.2A.docx
+```
+
+### Text Processing Features
+
+#### 1. Multi-Library PDF Extraction
+- **Primary**: PyMuPDF (fitz) - optimal for Hebrew chapter headers
+- **Fallback**: pdfplumber with word-level extraction
+- **Last Resort**: pdfminer.six
+
+#### 2. Hebrew Text Normalization
+- Character unification (NBSP→space, dash variants, quotes)
+- Hyphenated line break reflow: `מ-\nשה` → `משה`
+- PDF artifact removal (page numbers, dotted leaders)
+- Chapter header repair: `פרק1` → `פרק 1`
+
+#### 3. Hierarchical Document Parsing
+- **Chapter Detection**: `פרק N [- title]` headers
+- **Paragraph Numbers**: Supports up to 20 nesting levels (e.g., `1.2.3.4.5.6.7.8.9.10`)
+- **Canonicalization**: Relative numbers prefixed with chapter context
+
+### Output Schema
+
+#### Paragraphs Structure (`paragraphs.json`)
 ```json
 {
-  "seating_capacity": {
-    "keywords": [
-      "מקומות ישיבה",
-      {
-        "regex": true,
-        "pattern": "\\d+\\s*מקומות",
-        "flags": ["I", "U"]
+  "category_name": {
+    "chapter_number": {
+      "text": "chapter content",
+      "sub.paragraph": {
+        "text": "paragraph content",
+        "sub.sub.paragraph": {
+          "text": "nested content"
+        }
       }
-    ]
+    }
   }
 }
 ```
 
-**Supported regex flags:**
-- `I` - Case insensitive (default)
-- `M` - Multiline mode
-- `S` - Dotall mode (. matches newlines)  
-- `U` - Unicode mode
-- `X` - Verbose mode
+**Example:**
+```json
+{
+  "הרשות הארצית לכבאות והצלה": {
+    "5": {
+      "text": "Chapter 5 overview text",
+      "5.1": {
+        "text": "Paragraph 5.1 content"  
+      },
+      "5.1.1": {
+        "text": "Sub-paragraph 5.1.1 content"
+      }
+    }
+  }
+}
+```
 
-**Feature configuration formats:**
+#### Feature Mappings (`mappings.json`)
+```json
+{
+  "feature_name": {
+    "categories": {
+      "category_name": ["paragraph_numbers"]
+    },
+    "paragraphs": ["all_matching_paragraphs"]
+  }
+}
+```
 
-#### 1. Category-Specific Mapping
+**Example:**
+```json
+{
+  "עישון": {
+    "categories": {
+      "משרד הבריאות": ["4", "4.1", "4.5"]
+    },
+    "paragraphs": ["4", "4.1", "4.5"]
+  }
+}
+```
+
+### Feature Configuration (`features.json`)
+
+#### 1. Category-Specific Keywords
 Target specific document sections with tailored keywords:
 ```json
 {
@@ -81,8 +142,8 @@ Search within one specific category:
 }
 ```
 
-#### 3. Search All Categories
-Automatically search across all available categories using `search_all_categories: true`:
+#### 3. Global Search Mode
+Search across all document categories:
 ```json
 {
   "safety_general": {
@@ -96,83 +157,115 @@ Automatically search across all available categories using `search_all_categorie
 }
 ```
 
-#### 4. Legacy Global Search  
-Simple keyword-only format (searches all categories by default):
+#### 4. Legacy Format (Global Search)
+Simple keyword-only format:
 ```json
 {
   "emergency": {
     "keywords": ["חירום", "יציאת חירום", "חילוץ"]
   }
 }
+```
 
-### Schema (Normalized)
-Each rule becomes a JSON object:
+### Keyword Formats
+
+#### Literal Strings
+Case-insensitive exact matches:
+```json
+["כיבוי אש", "בטיחות אש", "גלאי עשן"]
+```
+
+#### Regex Patterns
+Advanced pattern matching with configurable flags:
+```json
+[
+  {
+    "regex": true,
+    "pattern": "\\d+\\s*מקומות",
+    "flags": ["I", "U"]
+  }
+]
+```
+
+**Supported Regex Flags:**
+- `I` - Case insensitive (default)
+- `M` - Multiline mode
+- `S` - Dotall mode (. matches newlines)  
+- `U` - Unicode mode
+- `X` - Verbose mode
+
+### Advanced Examples
+
+#### Complex Area Matching
 ```json
 {
-  "id": "string",
-  "category": "fire_safety | safety | sanitation | zoning | other",
-  "title": "string",
-  "description": "string",
-  "priority": "high | medium | low",
-  "conditions": {
-    "min_size_m2": 101,
-    "max_size_m2": 100,
-    "min_seats": 51,
-    "max_seats": null,
-    "uses_gas": true,
-    "serves_meat": false
+  "מ\"ר": {
+    "search_all_categories": true,
+    "keywords": [
+      {"regex": true, "pattern": "[0-9]+\\s*מ\"ר"},
+      {"regex": true, "pattern": "(?:עד|לפחות|מעל)\\s*\\d+[\\d.,]*\\s*(?:מ\\\"ר|מטר(?:ים)?\\s*מרובעים)"},
+      {"regex": true, "pattern": "\\d+[\\d.,]*\\s*[-–־]\\s*\\d+[\\d.,]*\\s*(?:מ\\\"ר|מטר(?:ים)?\\s*מרובעים)"}
+    ]
   }
 }
 ```
 
-### Hierarchical parsing (sections → rules → conditions)
-
-The extractor follows a hierarchical structure supporting **deep nesting up to 20 levels**:
-
-- Category (Section): numeric like `3`
-- Rule (Subsection): numeric like `3.1` 
-- Sub-rule: numeric like `3.1.2`
-- **Deep nesting**: supports complex structures like `2.7.2.7.1` or `5.5.6.5.6.10`
-
-**Real-world depth support:**
-- **Previous limit**: 4 levels (e.g., `1.2.3.4`)
-- **Enhanced support**: Up to 20 levels (e.g., `2.2.1.2.1.11.2.1.11.8.2.1.11.8.2`)
-- **Common usage**: Most documents use 4-8 levels, with legal documents reaching 15+ levels
-
-For every rule we output a single object with aggregated conditions from all of its sub-subsections in the `conditions` field, and preserve source details in `meta.sub_conditions`. Aggregation:
-
-- min_size_m2/min_seats: maximum of detected mins
-- max_size_m2/max_seats: minimum of detected maxes
-- uses_gas/serves_meat: true if any block requires it; null if unspecified
-
-Each rule includes:
-
-```
+#### Occupancy Detection
+```json
 {
-  id,
-  category,
-  title,
-  description,
-  priority,
-  conditions,
-  meta: {
-    auto_extracted, needs_review,
-    hierarchy: { category: {code,title}, rule: {code,title} },
-    sub_conditions: [ { code, title, text, conditions } ]
+  "תפוסה": {
+    "search_all_categories": true,
+    "keywords": [
+      {"regex": true, "pattern": "\\d+\\s*איש"},
+      {"regex": true, "pattern": "(?:עד|לפחות|מעל|יותר\\s*מ)\\s*\\d+\\s*איש"}
+    ]
   }
 }
 ```
 
-### Attribute → Requirement Mapping
-- Implemented in `backend/app/services/matching.py` using a Specification-style predicate:
-  - Numeric ranges: `size_m2`, `seats` must satisfy optional min/max bounds.
-  - Booleans match when specified: `uses_gas`, `serves_meat`.
-- Loader caches rules in memory: `backend/app/services/rules_loader.py`.
+### Data Integration
 
-### API Exposure
-- `GET /api/questions`: returns the questionnaire needed to collect business attributes (size, seats, gas usage, meat serving).
-- `POST /api/analyze`: accepts answers and returns `matched_rules` and `by_category` groupings.
+#### Rules Loader (`backend/app/services/rules_loader.py`)
+- Loads processed `restaurant_rules.json` into memory
+- Caches rules for efficient API access
+- **Design Pattern**: Singleton/Factory for centralized rule management
 
-### Notes
-- The same pipeline can be extended to parse PDFs/Word directly (e.g., `pdfplumber`, `python-docx`) and to enrich conditions.
-- For larger datasets, store processed rules in a database and version them.
+#### Matching Service (`backend/app/services/matching.py`)
+- Implements business logic matching algorithm
+- Maps user attributes to applicable regulations
+- **Design Pattern**: Specification pattern for complex rule evaluation
+
+#### API Endpoints (`backend/app/api/routes.py`)
+- `GET /api/questions`: Dynamic questionnaire generation
+- `POST /api/analyze`: Attribute-to-requirement matching
+- **Design Pattern**: Repository pattern for data access abstraction
+
+### Performance Optimizations
+
+1. **Caching**: In-memory rule caching via rules_loader
+2. **Lazy Loading**: Feature mappings computed on-demand
+3. **Efficient Regex**: Pre-compiled patterns with optimized flags
+4. **Hierarchical Search**: Category-specific searches reduce scope
+
+### Extension Points
+
+1. **Additional Formats**: Extend with Word/HTML parsers
+2. **Language Support**: Adapt regex patterns for other languages  
+3. **Database Storage**: Replace JSON with PostgreSQL/MongoDB for scale
+4. **ML Enhancement**: Add NER/classification for automatic feature detection
+5. **Versioning**: Implement rule versioning for regulatory updates
+
+### Verification & Testing
+
+The pipeline includes comprehensive verification:
+- **Format Consistency**: PDF vs DOCX output comparison
+- **Text Normalization**: Whitespace-normalized content matching
+- **Hierarchical Integrity**: Paragraph number set validation
+- **Feature Mapping**: Order-independent list comparison
+
+### Development Notes
+
+- **Memory Usage**: Efficient for documents up to ~1000 pages
+- **Hebrew Support**: Optimized for RTL text and Hebrew chapter headers
+- **Error Handling**: Graceful fallbacks for missing libraries/malformed input
+- **Deterministic**: Consistent output across runs and formats

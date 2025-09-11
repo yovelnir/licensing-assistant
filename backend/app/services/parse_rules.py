@@ -6,12 +6,10 @@ from pathlib import Path
 from typing import Dict, List, Tuple, Any, Iterable, Optional
 
 
-# Ensure the backend directory (parent of this scripts dir) is on sys.path so we can import app.*
+# Add backend directory to Python path for app.* imports
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 if str(BACKEND_DIR) not in sys.path:
     sys.path.append(str(BACKEND_DIR))
-
-# Local implementations of normalization, BiDi handling, paragraph parsing, and feature mappings
 
 
 # -------------------------
@@ -136,42 +134,6 @@ def _sorted_unique(numbers: Iterable[str]) -> List[str]:
     return sorted(unique, key=lambda n: (n.count('.'), n))
 
 
-def _ensure_path(root: Dict[str, Any], parts: List[str]) -> Dict[str, Any]:
-    """Create hierarchical nested structure from parts like ['1', '2', '3'] -> root['1']['1.2']['1.2.3']"""
-    node = root
-    path: List[str] = []
-    for part in parts:
-        path.append(part)
-        key = ".".join(path)
-        
-        # Ensure the node exists at this level
-        if key not in node:
-            node[key] = {"text": ""}
-        elif not isinstance(node[key], dict):
-            node[key] = {"text": str(node[key])}
-        if "text" not in node[key]:
-            node[key]["text"] = ""
-        
-        # Move down to the next level
-        node = node[key]
-    return node
-
-
-def _compress_node_texts(obj: Any) -> None:
-    """Recursively compress redundant blank lines in all node['text'] fields."""
-    if isinstance(obj, dict):
-        if "text" in obj and isinstance(obj["text"], str):
-            text = obj["text"].replace("\r\n", "\n").replace("\r", "\n")
-            # Strip leading/trailing whitespace and collapse runs of blank lines to a single newline
-            text = text.strip()
-            text = re.sub(r"\n{2,}", "\n", text)
-            obj["text"] = text
-        for k, v in list(obj.items()):
-            if k == "text":
-                continue
-            _compress_node_texts(v)
-
-
 # -------------------------
 # Canonicalization helpers
 # -------------------------
@@ -183,12 +145,19 @@ def chapter_of(num: str) -> str:
 
 def canonicalize_num(raw_num: str, current_chapter: Optional[str]) -> str:
     """
-    If we're in chapter X and see a heading that doesn't start with X,
-    treat it as a relative number and prefix X.
-      X        -> X
-      1        -> X.1
-      1.1      -> X.1.1
-      2.3.4    -> X.2.3.4
+    Canonicalize paragraph numbers relative to current chapter.
+    
+    Args:
+        raw_num: Raw paragraph number from text
+        current_chapter: Current chapter context (e.g., '4')
+        
+    Returns:
+        Canonicalized number: raw if absolute, or prefixed with chapter if relative
+        
+    Examples:
+        canonicalize_num('4', None) -> '4'
+        canonicalize_num('1', '4') -> '4.1' 
+        canonicalize_num('4.1', '4') -> '4.1'
     """
     if not current_chapter:
         return raw_num
@@ -199,9 +168,9 @@ def canonicalize_num(raw_num: str, current_chapter: Optional[str]) -> str:
     return f"{current_chapter}.{raw_num}"
 
 
-# Regex patterns for the new parsing implementation
-RE_CATEGORY = re.compile(r'^\s*פרק\s+(\d+)\s*(?:[-–—]\s*(.+?))?\s*$', re.U)
-RE_NUM_START = re.compile(r'^\s*(\d+(?:\.\d+){0,19})(?=[\s\.\-\)])', re.U)
+# Regex patterns for Hebrew document parsing
+RE_CATEGORY = re.compile(r'^\s*פרק\s+(\d+)\s*(?:[-–—]\s*(.+?))?\s*$', re.U)  # Chapter headers
+RE_NUM_START = re.compile(r'^\s*(\d+(?:\.\d+){0,19})(?=[\s\.\-\)])', re.U)  # Paragraph numbers
 
 
 def ensure_node(tree: Dict, cat: str, num: str) -> Dict:
@@ -227,7 +196,24 @@ def add_text(tree: Dict, cat: str, num: str, text: str) -> None:
 
 def parse_paragraphs(text: str) -> Dict[str, Any]:
     """
-    Build hierarchical paragraphs structure from normalized text with canonicalization.
+    Build hierarchical paragraph structure from normalized Hebrew text.
+    
+    Parses Hebrew documents with chapter headers (פרק N) and numbered paragraphs.
+    Supports up to 20 levels of nesting (e.g., 1.2.3.4.5...).
+    
+    Args:
+        text: Normalized document text
+        
+    Returns:
+        Hierarchical structure: {category: {paragraph_num: {"text": content, nested_paragraphs}}}
+        
+    Example output:
+        {
+          "פרק 4": {
+            "4": {"text": "Chapter content"},
+            "4.1": {"text": "Paragraph content"}
+          }
+        }
     """
     if not text:
         return {}
@@ -272,11 +258,20 @@ def parse_paragraphs(text: str) -> Dict[str, Any]:
 
 def _cleanup_pdf_artifacts(text: str) -> str:
     """
-    Remove simple PDF layout artifacts to improve determinism:
-      - Standalone page numbers (digits alone on a line)
-      - Dotted leaders (lines ending with long sequences of dots)
-      - Fix malformed chapter headers from PDF extraction
-    Applied to both PDF and DOCX extracted text for parity.
+    Clean up PDF extraction artifacts for better text processing.
+    
+    Removes:
+    - Standalone page numbers
+    - Dotted leaders (...)
+    - Malformed Hebrew chapter headers
+    
+    Applied to both PDF and DOCX for consistency.
+    
+    Args:
+        text: Raw extracted text
+        
+    Returns:
+        Cleaned text with artifacts removed
     """
     cleaned_lines: List[str] = []
     for line in text.splitlines():
@@ -306,13 +301,19 @@ def _cleanup_pdf_artifacts(text: str) -> str:
 
 def normalize(text: str) -> str:
     """
-    Normalize text extracted from PDF/DOCX.
-
-    Steps:
-      - NBSP → space; unify dashes and quotes
-      - Reflow hyphenated line breaks (e.g., "מ-\nשה" → "משה")
-      - Collapse multi-spaces; trim line ends
-      - Collapse ≥3 blank lines to exactly 2
+    Normalize extracted text for consistent processing.
+    
+    Normalization steps:
+    1. Convert NBSP to regular spaces
+    2. Unify different dash and quote characters
+    3. Reflow hyphenated line breaks (Hebrew: "מ-\nשה" → "משה")
+    4. Collapse multiple spaces and blank lines
+    
+    Args:
+        text: Raw extracted text
+        
+    Returns:
+        Normalized text ready for parsing
     """
     if not text:
         return ""
@@ -393,12 +394,21 @@ def _collect_numeric_keys(paragraphs: Dict[str, Any]) -> Dict[str, List[str]]:
 
 
 def _flatten_paragraphs(paragraphs: Dict[str, Any]) -> List[Tuple[str, str, str]]:
-    """Return list of (category, number, text) for all numeric nodes.
-
-    Category is emitted twice when possible:
-      - numeric chapter id (e.g., '4')
-      - chapter title text (e.g., 'משרד הבריאות')
-    This lets features.json match by either form.
+    """
+    Flatten hierarchical paragraphs to searchable list.
+    
+    Returns tuples of (category, paragraph_number, text) for keyword matching.
+    Categories are emitted in two forms when available:
+    - Numeric chapter ID (e.g., '4') 
+    - Chapter title (e.g., 'משרד הבריאות')
+    
+    This dual emission allows features.json to match by either identifier.
+    
+    Args:
+        paragraphs: Hierarchical paragraph structure
+        
+    Returns:
+        Flattened list of (category, number, text) tuples
     """
     rows: List[Tuple[str, str, str]] = []
     for chapter_id, nodes in paragraphs.items():
@@ -425,18 +435,17 @@ def _flatten_paragraphs(paragraphs: Dict[str, Any]) -> List[Tuple[str, str, str]
 
 def _compile_keywords(keyword_items: Iterable[Any]) -> List[re.Pattern[str]]:
     """
-    Compile keyword items into regex patterns.
+    Compile keyword items into regex patterns for text matching.
     
-    Supports two formats:
-    1. String: "literal text" - escaped as literal match (case-insensitive)
-    2. Dict: {"regex": true, "pattern": "regex_pattern", "flags": ["I", "M"]} 
-             - compiled as regex with optional flags
+    Supports two input formats:
+    1. String literals: "exact text" (escaped, case-insensitive)
+    2. Regex objects: {"regex": true, "pattern": "regex", "flags": ["I", "M"]}
     
     Args:
-        keyword_items: Iterable of strings or dict objects
+        keyword_items: Mixed iterable of strings and regex config dicts
         
     Returns:
-        List of compiled regex patterns
+        List of compiled regex patterns ready for text searching
     """
     patterns: List[re.Pattern[str]] = []
     for item in keyword_items:
@@ -473,20 +482,24 @@ def _compile_keywords(keyword_items: Iterable[Any]) -> List[re.Pattern[str]]:
 
 def build_mappings(paragraphs: Dict[str, Any], feature_keywords: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Build feature mappings from paragraphs using keyword matching.
+    Build feature mappings from paragraphs using flexible keyword matching.
     
     Supports multiple configuration formats:
     1. Category-specific: {"categories": {"cat1": [keywords], "cat2": [keywords]}}
     2. Single category: {"category": "cat_name", "keywords": [keywords]}  
     3. Search all categories: {"search_all_categories": true, "keywords": [keywords]}
-    4. Legacy fallback: {"keywords": [keywords]} - searches all categories
+    4. Legacy format: {"keywords": [keywords]} - searches all categories
+    
+    Keyword formats:
+    - String literals: "exact text" (case-insensitive)
+    - Regex patterns: {"regex": true, "pattern": "regex", "flags": ["I", "M"]}
     
     Args:
         paragraphs: Hierarchical paragraph structure by category
-        feature_keywords: Feature configuration with keywords and search scope
+        feature_keywords: Feature configuration from features.json
         
     Returns:
-        Mapping of features to matching paragraphs by category
+        Feature mappings: {feature_name: {"categories": {...}, "paragraphs": [...]}}
     """
     rows = _flatten_paragraphs(paragraphs)
     by_cat: Dict[str, List[Tuple[str, str]]] = {}
@@ -547,10 +560,21 @@ def build_mappings(paragraphs: Dict[str, Any], feature_keywords: Dict[str, Any])
     return result
 def compare_outputs(par_a: Dict[str, Any], map_a: Dict[str, Any], par_b: Dict[str, Any], map_b: Dict[str, Any]) -> Tuple[bool, str]:
     """
-    Compare two outputs. Order-insensitive where appropriate:
-      - paragraphs: text compared with collapsed whitespace; numeric key sets must match
-      - mappings: lists compared as sets; dictionaries compared by value
-    Returns (equal, diff_summary)
+    Compare two parser outputs for verification.
+    
+    Performs order-insensitive comparison:
+    - Paragraph text: normalized whitespace comparison
+    - Numeric keys: set equality per category  
+    - Feature mappings: set comparison for lists
+    
+    Used for validating PDF vs DOCX parsing consistency.
+    
+    Args:
+        par_a, par_b: Paragraph structures to compare
+        map_a, map_b: Feature mappings to compare
+        
+    Returns:
+        (is_equal, difference_summary)
     """
 
     # Compare category sets
@@ -630,6 +654,22 @@ def compare_outputs(par_a: Dict[str, Any], map_a: Dict[str, Any], par_b: Dict[st
 # -------------------------
 
 def run_pipeline(input_path: Path, features_path: Path) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    """
+    Execute complete document processing pipeline.
+    
+    Steps:
+    1. Extract text from PDF/DOCX
+    2. Normalize and clean text
+    3. Parse hierarchical paragraph structure
+    4. Build feature mappings from keywords
+    
+    Args:
+        input_path: Path to PDF or DOCX file
+        features_path: Path to features.json configuration
+        
+    Returns:
+        (paragraphs_dict, mappings_dict)
+    """
     ext = input_path.suffix.lower()
     if ext == ".pdf":
         raw = read_pdf(input_path)
@@ -648,6 +688,18 @@ def run_pipeline(input_path: Path, features_path: Path) -> Tuple[Dict[str, Any],
 
 
 def write_outputs(out_dir: Path, paragraphs: Dict[str, Any], mappings: Dict[str, Any]) -> None:
+    """
+    Write processing results to JSON files.
+    
+    Creates:
+    - paragraphs.json: Hierarchical document structure
+    - mappings.json: Feature-to-paragraph mappings
+    
+    Args:
+        out_dir: Output directory path
+        paragraphs: Parsed paragraph structure
+        mappings: Feature mappings
+    """
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "paragraphs.json").write_text(
         json.dumps(paragraphs, ensure_ascii=False, indent=2), encoding="utf-8"
@@ -658,6 +710,19 @@ def write_outputs(out_dir: Path, paragraphs: Dict[str, Any], mappings: Dict[str,
 
 
 def main(argv: List[str] | None = None) -> int:
+    """
+    Command-line interface for document processing pipeline.
+    
+    Usage:
+        python parse_rules.py input.pdf features.json output_dir
+        python parse_rules.py --verify-other input.docx input.pdf features.json output_dir
+        
+    Args:
+        argv: Command line arguments (None = sys.argv)
+        
+    Returns:
+        Exit code (0 = success, 1 = verification failed)
+    """
     parser = argparse.ArgumentParser(description="Build paragraph index and feature mappings from a spec PDF/DOCX")
     parser.add_argument("input", help="Input PDF or DOCX path")
     parser.add_argument("features", help="features.json path")
