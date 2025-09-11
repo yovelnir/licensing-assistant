@@ -1,0 +1,86 @@
+{
+  "feature_mappings": {
+    "גז": {
+      "label": "שימוש בגז",
+      "description": "גז למטבח, חימום או שימושים אחרים",
+      "category": "בטיחות",
+      "icon": "gas",
+      "priority": "high"
+    },
+    "מצלמות": {
+      "label": "מצלמות אבטחה",
+      "description": "מערכת מצלמות אבטחה (CCTV)",
+      "category": "אבטחה",
+      "icon": "camera",
+      "priority": "medium"
+    },
+    "עישון": {
+      "label": "אזור עישון",
+      "description": "אזור מיועד לעישון או איסור עישון",
+      "category": "בריאות",
+      "icon": "smoking",
+      "priority": "medium"
+    },
+    "אלכוהול": {
+      "label": "משקאות חריפים",
+      "description": "הגשת משקאות אלכוהוליים",
+      "category": "רישוי",
+      "icon": "alcohol",
+      "priority": "high"
+    },
+    "מ\"ר": {
+      "label": "גודל העסק",
+      "description": "שטח העסק במטרים מרובעים",
+      "category": "מידות",
+      "icon": "area",
+      "priority": "mandatory",
+      "exclude_from_questions": true
+    },
+    "תפוסה": {
+      "label": "תפוסה",
+      "description": "מספר מקומות ישיבה",
+      "category": "מידות",
+      "icon": "seats",
+      "priority": "mandatory",
+      "exclude_from_questions": true
+    }
+  },
+  "categories": {
+    "בטיחות": {
+      "label": "בטיחות",
+      "description": "דרישות בטיחות ואש",
+      "color": "#ff6b6b",
+      "icon": "shield"
+    },
+    "אבטחה": {
+      "label": "אבטחה",
+      "description": "מערכות אבטחה ומצלמות",
+      "color": "#4ecdc4",
+      "icon": "lock"
+    },
+    "בריאות": {
+      "label": "בריאות",
+      "description": "דרישות בריאות וסביבה",
+      "color": "#45b7d1",
+      "icon": "heart"
+    },
+    "רישוי": {
+      "label": "רישוי",
+      "description": "רישיונות והרשאות",
+      "color": "#96ceb4",
+      "icon": "certificate"
+    },
+    "מידות": {
+      "label": "מידות",
+      "description": "מידות וגדלים",
+      "color": "#feca57",
+      "icon": "ruler"
+    }
+  },
+  "settings": {
+    "exclude_mandatory_from_questions": true,
+    "default_priority": "medium",
+    "show_categories": true,
+    "group_by_category": false
+  }
+}
