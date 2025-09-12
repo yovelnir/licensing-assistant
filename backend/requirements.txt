@@ -8,3 +8,5 @@ pymupdf
 pdfplumber
 python-docx
 pdfminer.six
+openai
+requests

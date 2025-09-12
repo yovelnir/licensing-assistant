@@ -200,7 +200,7 @@ def _load_features_from_json():
         with features_path.open("r", encoding="utf-8") as f:
             return json.load(f)
     except Exception as e:
-        print(f"Warning: Could not load features.json: {e}")
+        logger.warning(f"Could not load features.json: {e}")
         return {}
 
 def _matches_user_profile(user_profile: Dict[str, Any], feature: str) -> bool:

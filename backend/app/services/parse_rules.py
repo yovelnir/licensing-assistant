@@ -747,7 +747,7 @@ def main(argv: List[str] | None = None) -> int:
             return 1
 
     write_outputs(out_dir, paragraphs, mappings)
-    print(f"Wrote: {out_dir / 'paragraphs.json'} and {out_dir / 'mappings.json'}")
+    logger.info(f"Wrote: {out_dir / 'paragraphs.json'} and {out_dir / 'mappings.json'}")
     return 0
 
 
