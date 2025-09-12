@@ -1,2 +1,127 @@
-html, body, #root { height: 100%; margin: 0; }
-* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, 'Segoe UI', Tahoma, Arial, sans-serif;
+  color: #333;
+  background: #fafafa;
+  direction: rtl; /* RTL for Hebrew text */
+  text-align: right;
+}
+
+/* Hebrew text support - RTL for all elements */
+* {
+  direction: rtl;
+  text-align: right;
+}
+
+/* Override for specific elements that should be LTR */
+input[type="number"], 
+input[type="text"], 
+input[type="email"], 
+input[type="password"],
+code, 
+pre {
+  direction: ltr;
+  text-align: left;
+}
+
+/* RTL-specific styling */
+[dir="rtl"], .hebrew {
+  direction: rtl;
+  text-align: right;
+}
+
+/* Form styling for Hebrew */
+input[type="number"], input[type="checkbox"] {
+  font-family: inherit;
+}
+
+/* RTL form layout */
+.form-container {
+  direction: rtl;
+  text-align: right;
+}
+
+.form-container label {
+  text-align: right;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.form-container input[type="number"] {
+  direction: ltr;
+  text-align: left;
+}
+
+/* RTL grid layout */
+.rtl-grid {
+  direction: rtl;
+  text-align: right;
+}
+
+/* RTL flexbox */
+.rtl-flex {
+  direction: rtl;
+  flex-direction: row-reverse;
+}
+
+/* Better checkbox styling */
+input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+}
+
+/* Enhanced multiselect styling */
+.multiselect-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .multiselect-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Button hover effects */
+button:not(:disabled):hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Results styling */
+details summary {
+  outline: none;
+}
+
+details summary:hover {
+  background-color: #f0f0f0;
+  border-radius: 4px;
+}
+
+/* Hebrew font optimization */
+.hebrew-text {
+  font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+  line-height: 1.6;
+}
+
+/* RTL form styling */
+.form-container {
+  direction: rtl;
+}
+
+.form-container input, .form-container textarea {
+  text-align: right;
+}
+
+/* Error messages in Hebrew */
+.error-message {
+  direction: rtl;
+  text-align: right;
+}

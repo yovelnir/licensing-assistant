@@ -1,30 +1,58 @@
-import React, { useEffect, useState } from 'react'
-
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000/api'
+import React from 'react'
+import { Header, Questionnaire, ErrorDisplay, ResultsDisplay } from '../components'
+import { useHealthCheck, useQuestions, useForm } from '../hooks'
 
 export const App: React.FC = () => {
-  const [status, setStatus] = useState<string>('loading...')
-  const [error, setError] = useState<string>('')
-
-  useEffect(() => {
-    const controller = new AbortController()
-    fetch(`${API_BASE}/health`, { signal: controller.signal })
-    .then(async (res) => {
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      setError('');           // clear any previous error
-      setStatus(data.status || 'unknown');
-    })
-      .catch((e: any) => {
-        if (e.name !== 'AbortError') setError(String(e))
-      })
-    return () => controller.abort()
-  }, [])
+  const health = useHealthCheck()
+  const { questions, loading: questionsLoading, error: questionsError } = useQuestions()
+  const {
+    answers,
+    loading,
+    error,
+    result,
+    onChange,
+    onSubmit,
+    onSubmitWithAI,
+    generateAIReportOnly,
+    isFormValid,
+    completedRequired,
+    requiredFields,
+    validationErrors,
+    aiLoading,
+    aiError
+  } = useForm(questions)
 
   return (
-    <div style={{ fontFamily: 'system-ui, sans-serif', padding: 24 }}>
-      <h1>Licensing Assistant</h1>
-      <p>Backend health: {error ? `error: ${error}` : status}</p>
+    <div style={{ 
+      fontFamily: 'system-ui, sans-serif', 
+      padding: 24, 
+      maxWidth: 800,
+      margin: '0 auto',
+      lineHeight: 1.6,
+      direction: 'rtl',
+      textAlign: 'right'
+    }}>
+      <Header health={health} />
+
+      <Questionnaire
+        questions={questions}
+        answers={answers}
+        loading={loading}
+        isFormValid={isFormValid}
+        completedRequired={completedRequired}
+        requiredFields={requiredFields}
+        validationErrors={validationErrors}
+        onChange={onChange}
+        onSubmit={onSubmit}
+        onSubmitWithAI={onSubmitWithAI}
+        generateAIReportOnly={generateAIReportOnly}
+        aiLoading={aiLoading}
+        aiError={aiError}
+      />
+
+      <ErrorDisplay error={error || questionsError} />
+
+      {result && <ResultsDisplay result={result} />}
     </div>
   )
 }
