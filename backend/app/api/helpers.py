@@ -6,9 +6,13 @@ Uses the Single Responsibility Principle to separate concerns.
 """
 
 import json
+import logging
 from pathlib import Path
 from typing import Dict, Any, List
 from app.services.matching import get_applicable_features
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 
 def load_features_from_json() -> Dict[str, Any]:
@@ -23,7 +27,7 @@ def load_features_from_json() -> Dict[str, Any]:
         with features_path.open("r", encoding="utf-8") as f:
             return json.load(f)
     except Exception as e:
-        print(f"Warning: Could not load features.json: {e}")
+        logger.warning(f"Could not load features.json: {e}")
         return {}
 
 
@@ -39,7 +43,7 @@ def load_questions_from_json() -> Dict[str, Any]:
         with questions_path.open("r", encoding="utf-8") as f:
             return json.load(f)
     except Exception as e:
-        print(f"Warning: Could not load questions.json: {e}")
+        logger.warning(f"Could not load questions.json: {e}")
         return {}
 
 
@@ -55,7 +59,7 @@ def load_feature_mappings_from_json() -> Dict[str, Any]:
         with mappings_path.open("r", encoding="utf-8") as f:
             return json.load(f)
     except Exception as e:
-        print(f"Warning: Could not load feature-mappings.json: {e}")
+        logger.warning(f"Could not load feature-mappings.json: {e}")
         return {}
 
 
