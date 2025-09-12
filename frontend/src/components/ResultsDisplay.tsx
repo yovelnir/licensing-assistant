@@ -1,10 +1,10 @@
-import React from 'react'
+import { AIReportDisplay } from './AIReportDisplay'
 
 interface ResultsDisplayProps {
   result: any
 }
 
-export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ result }) => {
+export const ResultsDisplay = ({ result }: ResultsDisplayProps) => {
   // Early return if no result
   if (!result) {
     return null
@@ -13,6 +13,7 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ result }) => {
   const businessAnalysis = result.business_analysis || {}
   const regulatoryAnalysis = result.regulatory_analysis || {}
   const recommendations = result.recommendations || {}
+  const aiReport = result.ai_report
 
   return (
     <div style={{ 
@@ -25,6 +26,11 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ result }) => {
         marginBottom: 20,
         textAlign: 'right'
       }}>תוצאות הניתוח</h2>
+      
+      {/* AI Report Section */}
+      {aiReport && (
+        <AIReportDisplay aiReport={aiReport} />
+      )}
       
       {/* Business Profile Summary */}
       <div style={{ 

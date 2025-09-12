@@ -4,17 +4,27 @@ import { useForm } from '../useForm'
 import { mockApiResponses, mockFetch, resetMocks } from '../../test/utils'
 
 // Mock the useApi module
-const mockPost = vi.fn()
 vi.mock('../useApi', () => ({
-  post: mockPost
+  post: vi.fn(),
+  useAIAnalysis: vi.fn(() => ({
+    analyzeWithAI: vi.fn(),
+    generateAIReport: vi.fn(),
+    getAIProviders: vi.fn(),
+    loading: false,
+    error: ''
+  }))
 }))
 
 describe('useForm Hook', () => {
   const mockQuestions = mockApiResponses.questions.questions
+  let mockPost: any
 
-  beforeEach(() => {
+  beforeEach(async () => {
     resetMocks()
     vi.clearAllMocks()
+    // Get the mocked post function
+    const useApiModule = await import('../useApi')
+    mockPost = useApiModule.post
   })
 
   describe('Initial State', () => {

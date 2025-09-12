@@ -1,10 +1,15 @@
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
+import { useAIAnalysis } from './useApi'
 
 export const useForm = (questions: any[]) => {
   const [answers, setAnswers] = useState<Record<string, any>>({})
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string>('')
   const [result, setResult] = useState<any | null>(null)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiError, setAiError] = useState<string>('')
+  
+  const { analyzeWithAI, generateAIReport } = useAIAnalysis()
 
   const onChange = (name: string, value: any) => {
     setAnswers((prev) => ({ ...prev, [name]: value }))
@@ -74,6 +79,50 @@ export const useForm = (questions: any[]) => {
     }
   }
 
+  const onSubmitWithAI = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setAiError('')
+    
+    // Client-side validation per משימה.md requirements
+    const validationErrors = validateForm()
+    if (validationErrors.length > 0) {
+      setError('שגיאות בטופס:\n' + validationErrors.join('\n'))
+      return
+    }
+    
+    setAiLoading(true)
+    try {
+      const data = await analyzeWithAI(answers)
+      setResult(data)
+    } catch (err: any) {
+      // Handle Hebrew error messages from backend
+      if (err.message.includes('HTTP 400')) {
+        setAiError('נתונים לא תקינים - אנא בדוק את השדות החובה')
+      } else if (err.message.includes('HTTP 500')) {
+        setAiError('שגיאה בשרת - אנא נסה שוב מאוחר יותר')
+      } else {
+        setAiError(`שגיאה: ${err.message}`)
+      }
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
+  const generateAIReportOnly = async (reportType: string = 'comprehensive') => {
+    setAiError('')
+    setAiLoading(true)
+    
+    try {
+      const data = await generateAIReport(answers, reportType)
+      setResult(data)
+    } catch (err: any) {
+      setAiError(`שגיאה ביצירת דוח AI: ${err.message}`)
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
   // Calculate form completion for משימה.md requirements
   const requiredFields = questions?.filter(q => q.required).map(q => q.name) || []
   const completedRequired = requiredFields.filter(field => 
@@ -92,9 +141,13 @@ export const useForm = (questions: any[]) => {
     result,
     onChange,
     onSubmit,
+    onSubmitWithAI,
+    generateAIReportOnly,
     isFormValid,
     completedRequired,
     requiredFields,
-    validationErrors
+    validationErrors,
+    aiLoading,
+    aiError
   }
 }

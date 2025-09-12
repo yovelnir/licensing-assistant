@@ -1,12 +1,10 @@
-import React from 'react'
-
 interface QuestionInputProps {
   q: any
   value: any
   onChange: (name: string, value: any) => void
 }
 
-export const QuestionInput: React.FC<QuestionInputProps> = ({ q, value, onChange }) => {
+export const QuestionInput = ({ q, value, onChange }: QuestionInputProps) => {
   const common = { id: q.name, name: q.name }
   const isRequired = q.required || false
   

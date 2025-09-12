@@ -12,10 +12,14 @@ export const App: React.FC = () => {
     result,
     onChange,
     onSubmit,
+    onSubmitWithAI,
+    generateAIReportOnly,
     isFormValid,
     completedRequired,
     requiredFields,
-    validationErrors
+    validationErrors,
+    aiLoading,
+    aiError
   } = useForm(questions)
 
   return (
@@ -40,6 +44,10 @@ export const App: React.FC = () => {
         validationErrors={validationErrors}
         onChange={onChange}
         onSubmit={onSubmit}
+        onSubmitWithAI={onSubmitWithAI}
+        generateAIReportOnly={generateAIReportOnly}
+        aiLoading={aiLoading}
+        aiError={aiError}
       />
 
       <ErrorDisplay error={error || questionsError} />

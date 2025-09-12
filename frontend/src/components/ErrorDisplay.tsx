@@ -1,10 +1,8 @@
-import React from 'react'
-
 interface ErrorDisplayProps {
   error: string
 }
 
-export const ErrorDisplay: React.FC<ErrorDisplayProps> = ({ error }) => {
+export const ErrorDisplay = ({ error }: ErrorDisplayProps) => {
   if (!error) return null
 
   return (

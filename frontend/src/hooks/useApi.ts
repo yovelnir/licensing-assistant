@@ -67,3 +67,56 @@ export const useQuestions = () => {
 
   return { questions, loading, error }
 }
+
+// AI-specific API functions
+export const useAIAnalysis = () => {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string>('')
+
+  const analyzeWithAI = async (answers: any) => {
+    setLoading(true)
+    setError('')
+    
+    try {
+      const result = await post<any>('/analyze-with-ai', answers)
+      setLoading(false)
+      return result
+    } catch (e) {
+      setError(String(e))
+      setLoading(false)
+      throw e
+    }
+  }
+
+  const generateAIReport = async (answers: any, reportType: string = 'comprehensive') => {
+    setLoading(true)
+    setError('')
+    
+    try {
+      const result = await post<any>('/generate-ai-report', { ...answers, report_type: reportType })
+      setLoading(false)
+      return result
+    } catch (e) {
+      setError(String(e))
+      setLoading(false)
+      throw e
+    }
+  }
+
+  const getAIProviders = async () => {
+    try {
+      return await get<any>('/ai-providers')
+    } catch (e) {
+      setError(String(e))
+      throw e
+    }
+  }
+
+  return {
+    loading,
+    error,
+    analyzeWithAI,
+    generateAIReport,
+    getAIProviders
+  }
+}

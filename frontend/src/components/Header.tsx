@@ -1,10 +1,8 @@
-import React from 'react'
-
 interface HeaderProps {
   health: string
 }
 
-export const Header: React.FC<HeaderProps> = ({ health }) => {
+export const Header = ({ health }: HeaderProps) => {
   return (
     <div style={{ 
       textAlign: 'center', 
