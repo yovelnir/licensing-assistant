@@ -7,7 +7,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: 'https://licensing-assistant-production.up.railway.app:5000',
         changeOrigin: true,
       },
     },
