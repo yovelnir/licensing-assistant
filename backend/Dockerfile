@@ -20,4 +20,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Railway provides $PORT; Gunicorn should bind to it
-CMD ["sh", "-c", "gunicorn -w 2 -k gthread -b 0.0.0.0:$PORT backend.wsgi:app"]
+CMD ["sh", "-c", "gunicorn -w 2 -k gthread -b 0.0.0.0:$PORT wsgi:app"]
