@@ -19,18 +19,62 @@ export const AIReportDisplay = ({ aiReport, loading = false }: AIReportProps) =>
   if (loading) {
     return (
       <div style={{
-        padding: '20px',
-        border: '2px solid #e0e0e0',
-        borderRadius: '8px',
+        userSelect: 'none',
+        pointerEvents: 'none',
+        padding: '30px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        border: '2px solid #007bff',
+        borderRadius: '12px',
         margin: '20px 0',
-        backgroundColor: '#f9f9f9',
-        textAlign: 'center'
+        backgroundColor: '#f8f9ff',
+        textAlign: 'center',
+        boxShadow: '0 4px 6px rgba(0, 123, 255, 0.1)'
       }}>
-        <div style={{ fontSize: '18px', marginBottom: '10px' }}>🤖</div>
-        <div>יוצר דוח חכם באמצעות AI...</div>
-        <div style={{ fontSize: '14px', color: '#666', marginTop: '10px' }}>
+        <div style={{ 
+          fontSize: '32px', 
+          marginBottom: '15px',
+          animation: 'spin 2s linear infinite',
+          margin: '0 auto'
+        }}>🤖</div>
+        <div style={{ 
+          fontSize: '18px', 
+          fontWeight: 'bold', 
+          color: '#007bff',
+          marginBottom: '8px',
+          textAlign: 'center'
+        }}>
+          יוצר דוח חכם באמצעות AI...
+        </div>
+        <div style={{ fontSize: '14px', color: '#666', marginBottom: '15px', textAlign: 'center' }}>
           זה יכול לקחת כמה שניות
         </div>
+        <div style={{
+          width: '40px',
+          height: '4px',
+          backgroundColor: '#007bff',
+          borderRadius: '2px',
+          margin: '0 auto',
+          animation: 'loading-bar 2s ease-in-out infinite',
+          textAlign: 'center'
+        }}></div>
+        <style>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+          @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+          }
+          @keyframes loading-bar {
+            0% { width: 20px; }
+            50% { width: 60px; }
+            100% { width: 20px; }
+          }
+        `}</style>
       </div>
     )
   }
@@ -43,17 +87,21 @@ export const AIReportDisplay = ({ aiReport, loading = false }: AIReportProps) =>
         borderRadius: '8px',
         margin: '20px 0',
         backgroundColor: '#ffe0e0',
-        textAlign: 'center'
+        textAlign: 'center',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center'
       }}>
-        <div style={{ fontSize: '18px', marginBottom: '10px' }}>⚠️</div>
-        <div style={{ fontWeight: 'bold', marginBottom: '10px' }}>
+        <div style={{ fontSize: '18px', marginBottom: '10px', textAlign: 'center' }}>⚠️</div>
+        <div style={{ fontWeight: 'bold', marginBottom: '10px', textAlign: 'center' }}>
           לא ניתן ליצור דוח AI
         </div>
-        <div style={{ fontSize: '14px', color: '#666' }}>
+        <div style={{ fontSize: '14px', color: '#666', textAlign: 'center' }}>
           {aiReport.error_message || 'שגיאה לא ידועה - אנא בדוק את מפתח ה-API'}
         </div>
         {aiReport.provider && (
-          <div style={{ fontSize: '12px', color: '#999', marginTop: '8px' }}>
+          <div style={{ fontSize: '12px', color: '#999', marginTop: '8px', textAlign: 'center' }}>
             ספק AI: {aiReport.provider}
           </div>
         )}

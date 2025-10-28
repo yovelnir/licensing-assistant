@@ -6,10 +6,10 @@ export const useForm = (questions: any[]) => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string>('')
   const [result, setResult] = useState<any | null>(null)
-  const [aiLoading, setAiLoading] = useState(false)
   const [aiError, setAiError] = useState<string>('')
+  const [isAIOnlyMode, setIsAIOnlyMode] = useState(false)
   
-  const { analyzeWithAI, generateAIReport } = useAIAnalysis()
+  const { analyzeWithAI, generateAIReport, loading: aiApiLoading } = useAIAnalysis()
 
   const onChange = (name: string, value: any) => {
     setAnswers((prev) => ({ ...prev, [name]: value }))
@@ -83,6 +83,7 @@ export const useForm = (questions: any[]) => {
     e.preventDefault()
     setError('')
     setAiError('')
+    setIsAIOnlyMode(false) // Full analysis mode
     
     // Client-side validation per משימה.md requirements
     const validationErrors = validateForm()
@@ -91,7 +92,6 @@ export const useForm = (questions: any[]) => {
       return
     }
     
-    setAiLoading(true)
     try {
       const data = await analyzeWithAI(answers)
       setResult(data)
@@ -104,22 +104,18 @@ export const useForm = (questions: any[]) => {
       } else {
         setAiError(`שגיאה: ${err.message}`)
       }
-    } finally {
-      setAiLoading(false)
     }
   }
 
   const generateAIReportOnly = async (reportType: string = 'comprehensive') => {
     setAiError('')
-    setAiLoading(true)
+    setIsAIOnlyMode(true) // AI-only mode
     
     try {
       const data = await generateAIReport(answers, reportType)
       setResult(data)
     } catch (err: any) {
       setAiError(`שגיאה ביצירת דוח AI: ${err.message}`)
-    } finally {
-      setAiLoading(false)
     }
   }
 
@@ -147,7 +143,8 @@ export const useForm = (questions: any[]) => {
     completedRequired,
     requiredFields,
     validationErrors,
-    aiLoading,
-    aiError
+    aiLoading: aiApiLoading,
+    aiError,
+    isAIOnlyMode
   }
 }

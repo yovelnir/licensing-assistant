@@ -2,9 +2,11 @@ import { AIReportDisplay } from './AIReportDisplay'
 
 interface ResultsDisplayProps {
   result: any
+  aiLoading?: boolean
+  showOnlyAIReport?: boolean
 }
 
-export const ResultsDisplay = ({ result }: ResultsDisplayProps) => {
+export const ResultsDisplay = ({ result, aiLoading = false, showOnlyAIReport = false }: ResultsDisplayProps) => {
   // Early return if no result
   if (!result) {
     return null
@@ -28,73 +30,84 @@ export const ResultsDisplay = ({ result }: ResultsDisplayProps) => {
       }}>תוצאות הניתוח</h2>
       
       {/* AI Report Section */}
+      {aiLoading && !aiReport && (
+        <AIReportDisplay aiReport={{ 
+          success: false, 
+          content: '', 
+          provider: '' 
+        }} loading={true} />
+      )}
       {aiReport && (
-        <AIReportDisplay aiReport={aiReport} />
+        <AIReportDisplay aiReport={aiReport} loading={aiLoading} />
       )}
       
-      {/* Business Profile Summary */}
-      <div style={{ 
-        backgroundColor: '#f0f8ff', 
-        padding: 16, 
-        borderRadius: 6, 
-        marginBottom: 20,
-        border: '1px solid #bee5eb',
-        direction: 'rtl',
-        textAlign: 'right'
-      }}>
-        <h3 style={{ 
-          margin: '0 0 12px 0', 
-          color: '#0c5460',
+      {/* Business Profile Summary - only show if not AI-only mode */}
+      {!showOnlyAIReport && (
+        <div style={{ 
+          backgroundColor: '#f0f8ff', 
+          padding: 16, 
+          borderRadius: 6, 
+          marginBottom: 20,
+          border: '1px solid #bee5eb',
+          direction: 'rtl',
           textAlign: 'right'
-        }}>פרופיל העסק</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <div>
-            <strong>גודל:</strong> {result.user_input?.size_m2} מ"ר 
-            ({businessAnalysis.classification?.size_category === 'large' ? 'עסק גדול' : 'עסק קטן'})
+        }}>
+          <h3 style={{ 
+            margin: '0 0 12px 0', 
+            color: '#0c5460',
+            textAlign: 'right'
+          }}>פרופיל העסק</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <strong>גודל:</strong> {result.user_input?.size_m2} מ"ר 
+              ({businessAnalysis.classification?.size_category === 'large' ? 'עסק גדול' : 'עסק קטן'})
+            </div>
+            <div>
+              <strong>תפוסה:</strong> {result.user_input?.seats} מקומות 
+              ({businessAnalysis.classification?.occupancy_category === 'high' ? 'תפוסה גבוהה' : 'תפוסה נמוכה'})
+            </div>
           </div>
-          <div>
-            <strong>תפוסה:</strong> {result.user_input?.seats} מקומות 
-            ({businessAnalysis.classification?.occupancy_category === 'high' ? 'תפוסה גבוהה' : 'תפוסה נמוכה'})
+          {result.user_input?.attributes?.length > 0 && (
+            <div style={{ marginTop: 8 }}>
+              <strong>מאפיינים נוספים:</strong> {result.user_input.attributes.join(', ')}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Regulatory Summary - only show if not AI-only mode */}
+      {!showOnlyAIReport && (
+        <div style={{ 
+          backgroundColor: '#fff3cd', 
+          padding: 16, 
+          borderRadius: 6, 
+          marginBottom: 20,
+          border: '1px solid #ffeaa7'
+        }}>
+          <h3 style={{ 
+            margin: '0 0 12px 0', 
+            color: '#856404',
+            textAlign: 'right'
+          }}>סיכום רגולטורי</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+            <div>
+              <strong>סה"כ דרישות:</strong> {regulatoryAnalysis.total_matches || 0}
+            </div>
+            <div>
+              <strong>עדיפות גבוהה:</strong> {regulatoryAnalysis.priority_breakdown?.high || 0}
+            </div>
+            <div>
+              <strong>עדיפות בינונית:</strong> {regulatoryAnalysis.priority_breakdown?.medium || 0}
+            </div>
+            <div>
+              <strong>מורכבות:</strong> {recommendations.estimated_complexity === 'high' ? 'גבוהה' : 'בינונית'}
+            </div>
           </div>
         </div>
-        {result.user_input?.attributes?.length > 0 && (
-          <div style={{ marginTop: 8 }}>
-            <strong>מאפיינים נוספים:</strong> {result.user_input.attributes.join(', ')}
-          </div>
-        )}
-      </div>
+      )}
 
-      {/* Regulatory Summary */}
-      <div style={{ 
-        backgroundColor: '#fff3cd', 
-        padding: 16, 
-        borderRadius: 6, 
-        marginBottom: 20,
-        border: '1px solid #ffeaa7'
-      }}>
-        <h3 style={{ 
-          margin: '0 0 12px 0', 
-          color: '#856404',
-          textAlign: 'right'
-        }}>סיכום רגולטורי</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-          <div>
-            <strong>סה"כ דרישות:</strong> {regulatoryAnalysis.total_matches || 0}
-          </div>
-          <div>
-            <strong>עדיפות גבוהה:</strong> {regulatoryAnalysis.priority_breakdown?.high || 0}
-          </div>
-          <div>
-            <strong>עדיפות בינונית:</strong> {regulatoryAnalysis.priority_breakdown?.medium || 0}
-          </div>
-          <div>
-            <strong>מורכבות:</strong> {recommendations.estimated_complexity === 'high' ? 'גבוהה' : 'בינונית'}
-          </div>
-        </div>
-      </div>
-
-      {/* Categories */}
-      {Object.keys(regulatoryAnalysis.by_category || {}).length > 0 && (
+      {/* Categories - only show if not AI-only mode */}
+      {!showOnlyAIReport && Object.keys(regulatoryAnalysis.by_category || {}).length > 0 && (
         <div style={{ 
           backgroundColor: 'white', 
           padding: 16, 
@@ -151,8 +164,8 @@ export const ResultsDisplay = ({ result }: ResultsDisplayProps) => {
         </div>
       )}
 
-      {/* Recommendations */}
-      {recommendations.immediate_actions?.length > 0 && (
+      {/* Recommendations - only show if not AI-only mode */}
+      {!showOnlyAIReport && recommendations.immediate_actions?.length > 0 && (
         <div style={{ 
           backgroundColor: '#d1ecf1', 
           padding: 16, 

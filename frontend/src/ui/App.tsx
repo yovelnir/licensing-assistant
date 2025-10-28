@@ -19,7 +19,8 @@ export const App: React.FC = () => {
     requiredFields,
     validationErrors,
     aiLoading,
-    aiError
+    aiError,
+    isAIOnlyMode
   } = useForm(questions)
 
   return (
@@ -52,7 +53,7 @@ export const App: React.FC = () => {
 
       <ErrorDisplay error={error || questionsError} />
 
-      {result && <ResultsDisplay result={result} />}
+      {<ResultsDisplay result={result ? result : {}} aiLoading={aiLoading} showOnlyAIReport={result ? isAIOnlyMode : true} />}
     </div>
   )
 }
